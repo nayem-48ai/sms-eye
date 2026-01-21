@@ -7,28 +7,21 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-    # v4 ব্যবহার করা হয়েছে
     - uses: actions/checkout@v4
 
     - name: set up JDK 17
-      # v4 ব্যবহার করা হয়েছে
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
-        cache: gradle
-
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
 
     - name: Build with Gradle
-      run: ./gradlew assembleDebug
+      # সরাসরি gradle ব্যবহার করা হচ্ছে যেহেতু আপনার gradlew ফাইলটি মিসিং
+      run: gradle assembleDebug
 
     - name: Upload APK
-      # এই লাইনটি আপনার এরর ফিক্স করবে (v3 থেকে v4 করা হয়েছে)
       uses: actions/upload-artifact@v4
       with:
         name: app-debug
-        path: app/build/outputs/apk/debug/app-debug.apk
+        path: "**/build/outputs/apk/debug/*.apk"
