@@ -16,6 +16,12 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
+    # Gradle 8.3 ব্যবহার করব কারণ এটি অ্যান্ড্রয়েডের জন্য বেশি স্টেবল
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: 8.3
+
     - name: Build with Gradle
       run: gradle assembleDebug
 
@@ -23,5 +29,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: app-debug
-        # পাথ পরিবর্তন করা হয়েছে যাতে সরাসরি বিল্ড আউটপুট খুঁজে পায়
         path: "build/outputs/apk/debug/*.apk"
