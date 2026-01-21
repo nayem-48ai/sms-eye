@@ -23,9 +23,14 @@ android {
         versionName "1.0"
     }
 
-    // রিসোর্স এরর এড়াতে এটি যোগ করুন
-    aaptOptions {
-        noCompress 'txt'
+    // এই অংশটি আপনার এরর ফিক্স করবে (দুটোকেই Java 17 করা হলো)
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = '17'
     }
 }
 
