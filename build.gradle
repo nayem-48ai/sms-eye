@@ -1,25 +1,17 @@
-buildscript {
-    repositories { google(); mavenCentral() }
-    dependencies { classpath 'com.android.tools.build:gradle:8.1.1' }
+plugins {
+    id 'com.android.application' version '8.1.1' apply true
+    id 'org.jetbrains.kotlin.android' version '1.8.20' apply true
 }
-
-allprojects {
-    repositories { google(); mavenCentral() }
-}
-
-apply plugin: 'com.android.application'
-apply plugin: 'kotlin-android'
 
 android {
     namespace 'com.example.smseye'
     compileSdk 34
-    
-    // এই অংশটি গুরুত্বপূর্ণ: এটি Gradle-কে বলছে ফাইলগুলো কোথায় আছে
+
     sourceSets {
         main {
             manifest.srcFile 'src/main/AndroidManifest.xml'
             java.srcDirs = ['src/main/java']
-            res.srcDirs = ['src/main/res'] // যদি res ফোল্ডার থাকে
+            res.srcDirs = ['src/main/res']
         }
     }
 
@@ -30,17 +22,18 @@ android {
         versionCode 1
         versionName "1.0"
     }
-    
-    buildTypes {
-        release {
-            minifyEnabled false
-        }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = '17' }
+
+    kotlinOptions {
+        jvmTarget = '17'
+    }
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.8.20"
     implementation 'androidx.core:core-ktx:1.10.1'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.9.0'
