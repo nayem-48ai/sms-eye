@@ -1,7 +1,6 @@
 package com.example.smseye
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -17,108 +16,86 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 
 class MainActivity : AppCompatActivity() {
-    private lateinit var prefs: android.content.SharedPreferences
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        prefs = getSharedPreferences("Settings", Context.MODE_PRIVATE)
-
+        
         val scroll = ScrollView(this)
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(40, 40, 40, 40)
+            setPadding(50, 60, 50, 60)
         }
         scroll.addView(layout)
 
-        // Title
-        layout.addView(TextView(this).apply { text = "SMS Eye Config"; textSize = 24f; setPadding(0, 0, 0, 40) })
+        val prefs = getSharedPreferences("Settings", Context.MODE_PRIVATE)
 
-        // Forward Mode Spinner
-        layout.addView(TextView(this).apply { text = "Forward Mode:" })
-        val modeSpinner = Spinner(this)
-        val modes = arrayOf("Telegram", "Firebase", "Both")
-        modeSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, modes)
-        layout.addView(modeSpinner)
+        // UI Header
+        layout.addView(TextView(this).apply { text = "SMS Forwarder Pro"; textSize = 26f; setTextColor(android.graphics.Color.BLUE); setPadding(0,0,0,40) })
 
-        // Telegram Inputs Group
-        val tgLayout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        // Inputs
         val tokenInput = EditText(this).apply { hint = "Telegram Bot Token"; setText(prefs.getString("bot_token", "")) }
         val chatInput = EditText(this).apply { hint = "Telegram Chat ID"; setText(prefs.getString("chat_id", "")) }
-        tgLayout.addView(tokenInput)
-        tgLayout.addView(chatInput)
-        layout.addView(tgLayout)
+        val firebaseInput = EditText(this).apply { hint = "Firebase Project ID (e.g. autopay-c8eea)"; setText(prefs.getString("fb_id", "autopay-c8eea")) }
+        
+        // Mode Selector
+        val modeText = TextView(this).apply { text = "Select Mode:"; setPadding(0, 20, 0, 10) }
+        val modeSpinner = Spinner(this)
+        val modes = arrayOf("Telegram Only", "Firebase Only", "Both")
+        modeSpinner.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, modes)
+        modeSpinner.setSelection(prefs.getInt("mode_index", 0))
 
-        // Firebase Inputs Group
-        val fbLayout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; visibility = View.GONE }
-        val fbUrlInput = EditText(this).apply { hint = "Firebase DB URL (e.g. project-id.firebaseio.com)"; setText(prefs.getString("fb_url", "")) }
-        fbLayout.addView(fbUrlInput)
-        layout.addView(fbLayout)
+        // Filter UI
+        val filterSwitch = Switch(this).apply { text = "Enable Sender Filter"; isChecked = prefs.getBoolean("is_filter_on", false) }
+        val senderInput = EditText(this).apply { hint = "Allowed Senders (e.g. BKash, MyGP)"; setText(prefs.getString("allowed_senders", "")) }
 
-        // Toggle visibility based on mode
-        modeSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(p0: AdapterView<*>?, p1: View?, pos: Int, p3: Long) {
-                tgLayout.visibility = if (pos == 1) View.GONE else View.VISIBLE
-                fbLayout.visibility = if (pos == 0) View.GONE else View.VISIBLE
+        // Buttons
+        val saveBtn = Button(this).apply { text = "Save Settings"; setBackgroundColor(android.graphics.Color.GREEN) }
+        val testBtn = Button(this).apply { text = "Test Telegram & Firebase"; setBackgroundColor(android.graphics.Color.LTGRAY) }
+        val optimizeBtn = Button(this).apply { text = "Disable Battery Optimization"; setBackgroundColor(android.graphics.Color.YELLOW) }
+
+        // Logic for Save
+        saveBtn.setOnClickListener {
+            prefs.edit().apply {
+                putString("bot_token", tokenInput.text.toString())
+                putString("chat_id", chatInput.text.toString())
+                putString("fb_id", firebaseInput.text.toString())
+                putInt("mode_index", modeSpinner.selectedItemPosition)
+                putBoolean("is_filter_on", filterSwitch.isChecked)
+                putString("allowed_senders", senderInput.text.toString())
+                apply()
             }
-            override fun onNothingSelected(p0: AdapterView<*>?) {}
+            Toast.makeText(this, "Settings Saved!", Toast.LENGTH_SHORT).show()
         }
-        modeSpinner.setSelection(modes.indexOf(prefs.getString("forward_mode", "Telegram")))
 
-        // Filter Logic
-        val filterSwitch = Switch(this).apply { text = "Specific Senders Only"; isChecked = prefs.getBoolean("is_filter_on", false) }
-        val senderInput = EditText(this).apply { hint = "Enter Senders (comma separated)"; setText(prefs.getString("allowed_senders", "")) }
-        layout.addView(filterSwitch); layout.addView(senderInput)
+        // Logic for Test
+        testBtn.setOnClickListener {
+            TelegramService.forwardSms(this, "Test-Sender", "This is a clean test message.")
+            Toast.makeText(this, "Test Signal Sent!", Toast.LENGTH_SHORT).show()
+        }
 
-        // Test Button
-        val testBtn = Button(this).apply {
-            text = "Send Test Message"
-            setOnClickListener {
-                saveData(modeSpinner.selectedItem.toString(), tokenInput.text.toString(), chatInput.text.toString(), fbUrlInput.text.toString(), filterSwitch.isChecked, senderInput.text.toString())
-                TelegramService.forwardSms(this@MainActivity, "Test", "Success! Connection Established.")
-                Toast.makeText(this@MainActivity, "Testing...", Toast.LENGTH_SHORT).show()
+        // Battery Optimization Logic
+        optimizeBtn.setOnClickListener {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+                startActivity(intent)
             }
         }
-        layout.addView(testBtn)
 
-        // Background Permission Button
-        val batteryBtn = Button(this).apply {
-            text = "Allow Background Running"
-            setOnClickListener { requestIgnoreBatteryOptimizations() }
+        // Add views to layout
+        layout.apply {
+            addView(tokenInput); addView(chatInput); addView(firebaseInput); addView(modeText)
+            addView(modeSpinner); addView(filterSwitch); addView(senderInput)
+            addView(saveBtn); addView(testBtn); addView(optimizeBtn)
         }
-        layout.addView(batteryBtn)
 
         setContentView(scroll)
         checkPermissions()
     }
 
-    private fun saveData(mode: String, token: String, cid: String, fUrl: String, fOn: Boolean, senders: String) {
-        prefs.edit().apply {
-            putString("forward_mode", mode)
-            putString("bot_token", token)
-            putString("chat_id", cid)
-            putString("fb_url", fUrl)
-            putBoolean("is_filter_on", fOn)
-            putString("allowed_senders", senders)
-            apply()
-        }
-    }
-
     private fun checkPermissions() {
-        val permissions = mutableListOf(Manifest.permission.RECEIVE_SMS, Manifest.permission.READ_SMS)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) permissions.add(Manifest.permission.FOREGROUND_SERVICE)
-        
-        val missing = permissions.filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
+        val perms = mutableListOf(Manifest.permission.RECEIVE_SMS, Manifest.permission.READ_SMS, Manifest.permission.INTERNET)
+        val missing = perms.filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
         if (missing.isNotEmpty()) ActivityCompat.requestPermissions(this, missing.toTypedArray(), 101)
-    }
-
-    @SuppressLint("BatteryLife")
-    private fun requestIgnoreBatteryOptimizations() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val intent = Intent().apply {
-                action = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
-                data = Uri.parse("package:$packageName")
-            }
-            startActivity(intent)
-        }
     }
 }
