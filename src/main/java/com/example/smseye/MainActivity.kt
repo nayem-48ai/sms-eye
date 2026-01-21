@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
-import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
@@ -13,216 +12,125 @@ import android.os.Bundle
 import android.provider.Settings
 import android.view.Gravity
 import android.view.View
-import android.view.ViewGroup
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import com.google.android.material.navigation.NavigationView
 
 class MainActivity : AppCompatActivity() {
     private lateinit var drawerLayout: DrawerLayout
-    private lateinit var senderListLayout: LinearLayout
-    private val allowedSenders = mutableListOf<String>()
     private var isEditMode = false
+    private val allowedSenders = mutableListOf<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
         val prefs = getSharedPreferences("Settings", Context.MODE_PRIVATE)
 
-        // Root Drawer Layout
+        // Root Layout (Drawer)
         drawerLayout = DrawerLayout(this)
-        
-        // Main Content Container
-        val container = LinearLayout(this).apply {
+        val contentBase = LinearLayout(this).apply { 
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#F8F9FA"))
+            setBackgroundColor(Color.parseColor("#F0F2F5")) 
         }
 
-        // Side Navigation View
-        val navView = NavigationView(this)
-        navView.setNavigationItemSelectedListener { item ->
-            when(item.itemId) {
-                1 -> {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                            data = Uri.parse("package:$packageName")
-                        }
-                        startActivity(intent)
-                    }
-                }
-                2 -> Toast.makeText(this, "SMS Eye v2.0\nStatus: Active", Toast.LENGTH_LONG).show()
-            }
-            drawerLayout.closeDrawers()
-            true
-        }
-        navView.menu.add(0, 1, 0, "Battery Optimization").setIcon(android.R.drawable.ic_lock_idle_low_battery)
-        navView.menu.add(0, 2, 0, "About App").setIcon(android.R.drawable.ic_dialog_info)
-
-        // --- UI Header ---
-        val header = LinearLayout(this).apply {
+        // --- Custom ToolBar (Glassy) ---
+        val toolbar = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            setPadding(40, 60, 40, 40)
+            setPadding(40, 50, 40, 50)
             setBackgroundColor(Color.WHITE)
+            elevation = 10f
         }
-        val menuBtn = Button(this).apply { text = "☰"; textSize = 20f; background = null }
+        val menuBtn = Button(this).apply { text = "☰"; background = null; textSize = 20f }
         menuBtn.setOnClickListener { drawerLayout.openDrawer(Gravity.START) }
-        
-        val title = TextView(this).apply {
-            text = "SMS EYE PRO"
-            textSize = 22f
-            setTypeface(null, Typeface.BOLD)
-            setPadding(30, 0, 0, 0)
-        }
-        header.addView(menuBtn)
-        header.addView(title)
-        container.addView(header)
+        toolbar.addView(menuBtn)
+        toolbar.addView(TextView(this).apply { text = "SMS Eye Pro"; textSize = 20f; setPadding(30,0,0,0) })
+        contentBase.addView(toolbar)
 
-        // --- Scrollable Form ---
+        // --- Form Container ---
         val scroll = ScrollView(this)
-        val form = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(50, 40, 50, 40)
-        }
+        val form = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(50, 40, 50, 40) }
         scroll.addView(form)
-        container.addView(scroll)
+        contentBase.addView(scroll)
 
-        // Status Switch
-        val statusSwitch = Switch(this).apply {
-            text = "Service Active Status"
-            isChecked = prefs.getBoolean("is_active", true)
-            setPadding(0, 20, 0, 40)
+        // Inputs
+        val statusSwitch = Switch(this).apply { text = "Service Active"; isChecked = prefs.getBoolean("is_active", true); setPadding(0,20,0,20) }
+        val modeSpinner = Spinner(this).apply { adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, arrayOf("Telegram", "Firebase", "Both")) }
+        
+        val tokenInput = createInput("Telegram Token", prefs.getString("bot_token", ""))
+        val chatInput = createInput("Chat ID", prefs.getString("chat_id", ""))
+        
+        // Firebase Script Box (Collapsible)
+        val fbScriptInput = EditText(this).apply {
+            hint = "Paste Firebase Script"
+            val savedScript = prefs.getString("fb_script", "")
+            setText(if (savedScript!!.length > 50) savedScript.substring(0, 40) + "..." else savedScript)
+            setBackgroundResource(android.R.drawable.edit_text)
         }
 
-        // Mode Spinner
-        val modeSpinner = Spinner(this)
-        val modes = arrayOf("Telegram Only", "Firebase Only", "Both")
-        val adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, modes)
-        modeSpinner.adapter = adapter
-        modeSpinner.setSelection(prefs.getInt("mode_index", 0))
+        val editBtn = Button(this).apply { text = "Edit Configuration"; setBackgroundColor(Color.parseColor("#6200EE")); setTextColor(Color.WHITE) }
 
-        // Input Fields
-        val tokenInput = createStyledInput("Telegram Bot Token", prefs.getString("bot_token", ""))
-        val chatInput = createStyledInput("Telegram Chat ID", prefs.getString("chat_id", ""))
-        val fbScriptInput = createStyledInput("Paste Firebase Script Here", prefs.getString("fb_script", ""))
-
-        // Dynamic Visibility
-        fun toggleInputs(pos: Int) {
-            tokenInput.visibility = if (pos == 0 || pos == 2) View.VISIBLE else View.GONE
-            chatInput.visibility = if (pos == 0 || pos == 2) View.VISIBLE else View.GONE
-            fbScriptInput.visibility = if (pos == 1 || pos == 2) View.VISIBLE else View.GONE
-        }
-        modeSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(p0: AdapterView<*>?, p1: View?, pos: Int, p3: Long) = toggleInputs(pos)
-            override fun onNothingSelected(p0: AdapterView<*>?) {}
-        }
-
-        // Sender List Area
-        senderListLayout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, 20, 0, 20) }
-        val addSenderBox = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        val newSenderInput = EditText(this).apply { hint = "Sender Name"; layoutParams = LinearLayout.LayoutParams(0, -2, 1f) }
-        val addBtn = Button(this).apply { text = "+" }
-        addBtn.setOnClickListener {
-            val name = newSenderInput.text.toString().trim()
-            if (name.isNotEmpty()) { addSenderTag(name); newSenderInput.text.clear() }
-        }
-        addSenderBox.addView(newSenderInput); addSenderBox.addView(addBtn)
-
-        // Edit/Save Button
-        val editBtn = Button(this).apply {
-            text = "Edit Configuration"
-            setBackgroundColor(Color.LTGRAY)
-        }
-
-        fun setEnabledState(enabled: Boolean) {
-            statusSwitch.isEnabled = enabled
-            modeSpinner.isEnabled = enabled
-            tokenInput.isEnabled = enabled
-            chatInput.isEnabled = enabled
-            fbScriptInput.isEnabled = enabled
-            newSenderInput.isEnabled = enabled
-            addBtn.isEnabled = enabled
-        }
-        setEnabledState(false)
-
+        // Logic for Edit/Save
         editBtn.setOnClickListener {
             if (!isEditMode) {
                 isEditMode = true
-                editBtn.text = "Save Configuration"
-                editBtn.setBackgroundColor(Color.parseColor("#4CAF50"))
-                editBtn.setTextColor(Color.WHITE)
-                setEnabledState(true)
+                editBtn.text = "Save & Sync"
+                fbScriptInput.setText(prefs.getString("fb_script", "")) // Show full script
+                toggleFields(true, tokenInput, chatInput, fbScriptInput, statusSwitch)
             } else {
                 val script = fbScriptInput.text.toString()
-                val extractedId = "\"projectId\":\\s*\"(.*?)\"".toRegex().find(script)?.groups?.get(1)?.value ?: ""
+                val projectId = "\"projectId\":\\s*\"(.*?)\"".toRegex().find(script)?.groups?.get(1)?.value ?: ""
                 
                 prefs.edit().apply {
                     putBoolean("is_active", statusSwitch.isChecked)
                     putString("bot_token", tokenInput.text.toString())
                     putString("chat_id", chatInput.text.toString())
                     putString("fb_script", script)
-                    putString("fb_id", extractedId)
+                    putString("fb_id", projectId)
                     putInt("mode_index", modeSpinner.selectedItemPosition)
-                    putString("allowed_senders", allowedSenders.joinToString(","))
                     apply()
                 }
                 isEditMode = false
                 editBtn.text = "Edit Configuration"
-                editBtn.setBackgroundColor(Color.LTGRAY)
-                editBtn.setTextColor(Color.BLACK)
-                setEnabledState(false)
-                Toast.makeText(this, "Configuration Saved!", Toast.LENGTH_SHORT).show()
+                fbScriptInput.setText(if (script.length > 50) script.substring(0, 40) + "..." else script)
+                toggleFields(false, tokenInput, chatInput, fbScriptInput, statusSwitch)
+                Toast.makeText(this, "Synced with Firebase: $projectId", Toast.LENGTH_SHORT).show()
             }
         }
 
-        // Add to Form
-        form.addView(statusSwitch)
-        form.addView(modeSpinner)
+        form.addView(statusSwitch); form.addView(modeSpinner)
         form.addView(tokenInput); form.addView(chatInput); form.addView(fbScriptInput)
-        form.addView(TextView(this).apply { text = "Forwarding List:"; setPadding(0, 30, 0, 10) })
-        form.addView(addSenderBox); form.addView(senderListLayout)
         form.addView(editBtn)
 
-        // Load Senders
-        val savedSenders = prefs.getString("allowed_senders", "") ?: ""
-        if (savedSenders.isNotEmpty()) savedSenders.split(",").forEach { addSenderTag(it) }
-
-        drawerLayout.addView(container)
+        // --- Side Nav View ---
+        val navView = NavigationView(this)
+        navView.setNavigationItemSelectedListener {
+            if (it.itemId == 1) {
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply { data = Uri.parse("package:$packageName") }
+                startActivity(intent)
+            }
+            drawerLayout.closeDrawers(); true
+        }
+        navView.menu.add(0, 1, 0, "Optimize Battery").setIcon(android.R.drawable.ic_lock_idle_low_battery)
+        
+        drawerLayout.addView(contentBase)
+        drawerLayout.addView(navView, DrawerLayout.LayoutParams(700, -1).apply { gravity = Gravity.START })
+        
         setContentView(drawerLayout)
+        toggleFields(false, tokenInput, chatInput, fbScriptInput, statusSwitch)
         checkPermissions()
     }
 
-    private fun addSenderTag(name: String) {
-        if (allowedSenders.contains(name)) return
-        allowedSenders.add(name)
-        val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, 5, 0, 5) }
-        val t = TextView(this).apply { text = name; layoutParams = LinearLayout.LayoutParams(0, -2, 1f) }
-        val d = Button(this).apply { text = "X"; setTextColor(Color.RED); background = null }
-        d.setOnClickListener {
-            if (isEditMode) {
-                senderListLayout.removeView(row)
-                allowedSenders.remove(name)
-            }
-        }
-        row.addView(t); row.addView(d)
-        senderListLayout.addView(row)
+    private fun createInput(hint: String, value: String?) = EditText(this).apply {
+        setHint(hint); setText(value); setPadding(30, 30, 30, 30)
     }
 
-    private fun createStyledInput(hint: String, text: String?) = EditText(this).apply {
-        setHint(hint)
-        setText(text)
-        setPadding(30, 30, 30, 30)
-        background = GradientDrawable().apply {
-            setColor(Color.WHITE)
-            setStroke(2, Color.parseColor("#DDDDDD"))
-            cornerRadius = 12f
-        }
+    private fun toggleFields(enable: Boolean, vararg views: View) {
+        views.forEach { it.isEnabled = enable }
     }
 
     private fun checkPermissions() {
-        val perms = arrayOf(Manifest.permission.RECEIVE_SMS, Manifest.permission.READ_SMS)
-        ActivityCompat.requestPermissions(this, perms, 101)
+        ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECEIVE_SMS, Manifest.permission.READ_SMS), 101)
     }
 }
