@@ -3,6 +3,8 @@ name: Build Android APK
 on:
   push:
     branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
@@ -20,26 +22,42 @@ jobs:
         java-version: '17'
         
     - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
+      uses: android-actions/setup-android@v2
+      with:
+        cmdline-tools-version: 'latest'
+        
+    - name: Grant execute permission to gradlew
+      run: |
+        if [ -f "./gradlew" ]; then
+          chmod +x ./gradlew
+        else
+          # Create gradlew if it doesn't exist
+          echo "Downloading gradlew..."
+          curl -o gradlew https://raw.githubusercontent.com/gradle/gradle/master/gradlew
+          chmod +x gradlew
+          
+          # Create gradlew.bat
+          echo "Downloading gradlew.bat..."
+          curl -o gradlew.bat https://raw.githubusercontent.com/gradle/gradle/master/gradlew.bat
+        fi
+        
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
       
-    - name: Make gradlew executable
-      run: chmod +x ./gradlew
-      
-    - name: Build Debug APK
-      run: ./gradlew assembleDebug
-      
-    - name: Upload APK
+    - name: Build with Gradle
+      run: |
+        ./gradlew build --no-daemon
+        
+    - name: Upload APK artifacts
       uses: actions/upload-artifact@v4
       with:
         name: SMS-Forwarder-APK
-        path: app/build/outputs/apk/debug/app-debug.apk
+        path: |
+          app/build/outputs/apk/debug/*.apk
+          app/build/outputs/apk/release/*.apk
+        if-no-files-found: error
         
-    - name: Build Release APK
+    - name: List build outputs
       run: |
-        ./gradlew assembleRelease
-        
-    - name: Upload Release APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: SMS-Forwarder-Release-APK
-        path: app/build/outputs/apk/release/app-release-unsigned.apk
+        echo "=== Build outputs ==="
+        find . -name "*.apk" -type f | xargs ls -la
