@@ -1,12 +1,13 @@
 plugins {
-    id 'com.android.application' version '8.1.1' apply true
-    id 'org.jetbrains.kotlin.android' version '1.8.20' apply true
+    id 'com.android.application' version '8.1.1'
+    id 'org.jetbrains.kotlin.android' version '1.8.20'
 }
 
 android {
     namespace 'com.example.smseye'
     compileSdk 34
 
+    // মোবাইল থেকে ম্যানেজ করার সুবিধার্থে পাথগুলো ফিক্সড করে দেওয়া হলো
     sourceSets {
         main {
             manifest.srcFile 'src/main/AndroidManifest.xml'
@@ -21,8 +22,16 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
