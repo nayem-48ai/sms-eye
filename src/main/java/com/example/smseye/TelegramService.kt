@@ -16,9 +16,9 @@ object TelegramService {
         val modeIndex = prefs.getInt("mode_index", 0)
         
         val cleanText = "$sender: $message"
-        val encodedText = URLEncoder.encode(cleanText, "UTF-8") // স্পেশাল ক্যারেক্টার ফিক্স
+        val encodedText = try { URLEncoder.encode(cleanText, "UTF-8") } catch (e: Exception) { cleanText }
 
-        // Telegram Logic
+        // Telegram
         if (modeIndex == 0 || modeIndex == 2) {
             val token = prefs.getString("bot_token", "")
             val chatId = prefs.getString("chat_id", "")
@@ -32,11 +32,10 @@ object TelegramService {
             }
         }
 
-        // Firebase Logic
+        // Firebase
         if (modeIndex == 1 || modeIndex == 2) {
             val fbId = prefs.getString("fb_id", "autopay-c8eea")
             val url = "https://$fbId-default-rtdb.firebaseio.com/sms_logs.json"
-            
             val json = JSONObject().apply {
                 put("sender", sender); put("message", message); put("time", System.currentTimeMillis())
             }
