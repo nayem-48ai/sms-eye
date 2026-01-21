@@ -17,11 +17,11 @@ jobs:
         distribution: 'temurin'
 
     - name: Build with Gradle
-      # সরাসরি gradle ব্যবহার করা হচ্ছে যেহেতু আপনার gradlew ফাইলটি মিসিং
       run: gradle assembleDebug
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: app-debug
-        path: "**/build/outputs/apk/debug/*.apk"
+        # পাথ পরিবর্তন করা হয়েছে যাতে সরাসরি বিল্ড আউটপুট খুঁজে পায়
+        path: "build/outputs/apk/debug/*.apk"
