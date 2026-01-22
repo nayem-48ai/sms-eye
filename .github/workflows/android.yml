@@ -1,4 +1,4 @@
-name: Android বিল্ড
+name: Android Build
 
 on:
   push:
