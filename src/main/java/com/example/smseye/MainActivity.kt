@@ -4,14 +4,12 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.view.Gravity
 import android.view.View
-import android.view.ViewGroup
 import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -27,7 +25,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
         val prefs = getSharedPreferences("Settings", Context.MODE_PRIVATE)
 
         drawerLayout = DrawerLayout(this)
@@ -57,18 +54,19 @@ class MainActivity : AppCompatActivity() {
         // Inputs
         val statusSwitch = Switch(this).apply { text = "Forwarding Service"; isChecked = prefs.getBoolean("is_active", true); setPadding(0,20,0,40) }
         val modeSpinner = Spinner(this).apply { adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, arrayOf("Telegram", "Firestore", "Both")) }
-        
+        modeSpinner.setSelection(prefs.getInt("mode_index", 0))
+
         val tokenInput = createInput("Telegram Bot Token", prefs.getString("bot_token", ""))
         val chatInput = createInput("Telegram Chat ID", prefs.getString("chat_id", ""))
         
         val fbScriptInput = EditText(this).apply {
-            hint = "Paste Firebase Script"
+            hint = "Paste Firebase Script Here"
             val savedScript = prefs.getString("fb_script", "") ?: ""
             setText(if (!isEditMode && savedScript.length > 40) savedScript.take(35) + "..." else savedScript)
             setBackgroundResource(android.R.drawable.edit_text)
         }
 
-        // --- Sender Filter Section ---
+        // --- Sender Filter ---
         val filterTitle = TextView(this).apply { text = "Sender Filter (Whitelist)"; setPadding(0, 40, 0, 10); textSize = 16f }
         senderListLayout = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val addRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -95,7 +93,9 @@ class MainActivity : AppCompatActivity() {
                 toggleFields(true, tokenInput, chatInput, fbScriptInput, statusSwitch, addBtn, newSenderIn)
             } else {
                 val script = fbScriptInput.text.toString()
+                // Regex to find Project ID and API Key from script
                 val projectId = "\"projectId\":\\s*\"(.*?)\"".toRegex().find(script)?.groups?.get(1)?.value ?: ""
+                val apiKey = "\"apiKey\":\\s*\"(.*?)\"".toRegex().find(script)?.groups?.get(1)?.value ?: ""
                 
                 prefs.edit().apply {
                     putBoolean("is_active", statusSwitch.isChecked)
@@ -103,6 +103,7 @@ class MainActivity : AppCompatActivity() {
                     putString("chat_id", chatInput.text.toString())
                     putString("fb_script", script)
                     putString("fb_id", projectId)
+                    putString("fb_key", apiKey)
                     putInt("mode_index", modeSpinner.selectedItemPosition)
                     putString("allowed_senders", allowedSenders.joinToString(","))
                     apply()
@@ -111,7 +112,7 @@ class MainActivity : AppCompatActivity() {
                 editBtn.text = "Edit Configuration"
                 fbScriptInput.setText(if (script.length > 40) script.take(35) + "..." else script)
                 toggleFields(false, tokenInput, chatInput, fbScriptInput, statusSwitch, addBtn, newSenderIn)
-                Toast.makeText(this, "Configuration Synced!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Configuration Saved!", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -120,7 +121,7 @@ class MainActivity : AppCompatActivity() {
         form.addView(filterTitle); form.addView(addRow); form.addView(senderListLayout)
         form.addView(editBtn)
 
-        // Navigation
+        // Side Nav Setup
         val navView = NavigationView(this)
         navView.setNavigationItemSelectedListener {
             when(it.itemId) {
@@ -139,13 +140,10 @@ class MainActivity : AppCompatActivity() {
         
         drawerLayout.addView(contentBase)
         drawerLayout.addView(navView, DrawerLayout.LayoutParams(750, -1).apply { gravity = Gravity.START })
-        
         setContentView(drawerLayout)
-        
-        // Load Senders
+
         val saved = prefs.getString("allowed_senders", "") ?: ""
         if (saved.isNotEmpty()) saved.split(",").forEach { addSenderTag(it) }
-        
         toggleFields(false, tokenInput, chatInput, fbScriptInput, statusSwitch, addBtn, newSenderIn)
         checkPermissions()
     }
@@ -162,16 +160,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showAboutDialog() {
-        AlertDialog.Builder(this)
-            .setTitle("About SMS Eye Pro")
-            .setMessage("Version: 3.0.1\nDeveloper: AI Partner\nDescription: A secure way to forward SMS to Telegram and Firestore.")
-            .setPositiveButton("OK", null)
-            .show()
+        AlertDialog.Builder(this).setTitle("About SMS Eye Pro")
+            .setMessage("Version: 3.1\nStatus: Firestore Enabled\nDeveloper: AI Partner")
+            .setPositiveButton("OK", null).show()
     }
 
     private fun createInput(hint: String, value: String?) = EditText(this).apply { setHint(hint); setText(value); setPadding(30, 30, 30, 30) }
-
     private fun toggleFields(enable: Boolean, vararg views: View) { views.forEach { it.isEnabled = enable } }
-
     private fun checkPermissions() { ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECEIVE_SMS, Manifest.permission.READ_SMS), 101) }
 }
